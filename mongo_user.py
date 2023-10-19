@@ -1,7 +1,6 @@
 from functools import wraps
 
 from bson.codec_options import TypeRegistry, CodecOptions
-from faker import Faker
 from locust import User, between, task
 
 from decimal_codec import DecimalCodec
@@ -62,10 +61,12 @@ class MongoUser(User):
     def __init__(self, environment):
         super().__init__(environment)
         self.db = CLIENT[DEFAULTS['DB_NAME']]
-        self.collection, self.collection_secondary = None, None
-        self.faker = Faker()
+        # list of collections
+        self.collections = [None for collId in range(DEFAULTS['NUM_COLLECTIONS'])]
+        # one name cache per collection
+        self.cache = [[] for collId in range(DEFAULTS['NUM_COLLECTIONS'])]
 
-    def ensure_collection(self, coll_name, indexes=[], read_preference=pymongo.read_preferences.Secondary()):
+    def ensure_collection(self, collId, coll_name, indexes=[]):
         """
         Define the collection and its indexes, return two collections objects:
         one for default read preference, the other with the specified read preference.
@@ -77,15 +78,22 @@ class MongoUser(User):
 
         # create the collection if not exists
         if coll_name not in self.db.list_collection_names():
-            collection = self.db.create_collection(
-                coll_name, codec_options=codec_options)
+            print('[ensure_collection] Created new collection:"',coll_name)
+            collection = self.db.create_collection(coll_name, codec_options=codec_options)
+            # create the required indexes (only if collection didnt exist)
+            if indexes:
+                collection.create_indexes(indexes)
         else:
-            collection = self.db.get_collection(
-                coll_name, codec_options=codec_options)
+            collection = self.db.get_collection(coll_name, codec_options=codec_options)
+            print('[ensure_collection] Found existing collection:"',coll_name)
 
-        # create the required indexes
-        if indexes:
-            collection.create_indexes(indexes)
+            if not self.cache[collId]:
+                # Retrieve data from the collection and warm up cache
+                count = 0;
+                for doc in collection.aggregate([ { "$sample": { "size": DEFAULTS['DOCS_TO_CACHE'] } }, { "$project" : { "_id": 1} } ]):
+                    self.cache[collId].append(doc['_id'])
+                    count += 1
+                print("[ensure_collection] Warmed up cache with docs: ", count)
 
         # also return the second collection with readPreference
-        return collection, self.db.get_collection(coll_name, read_preference=read_preference)
+        return collection

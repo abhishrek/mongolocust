@@ -5,10 +5,10 @@ from settings import DEFAULTS
 
 import pymongo
 import random
+import math
 
-# number of cache entries for queries
-NAMES_TO_CACHE = 1000
-
+# preset string of len 501. Used to generate random text
+STR = '8oqws3EKxNXol1ksDuRIXCPyuDspQKQhQsV1yY00NEAzQmptCJd5DVNcC6RNARWQvzKUTgiYZnmhdxhEuyuses9ZIFLUQSbwm3wPWwLigaVGYiOMcEksxT4zp16wTR5bctuRZ0KfJgFAs3jEjtycmCoReNCft1k6XLcds6ek9PdcmrukMqL7HWw05OTT1ofz8UysTZar1ugRNmGFW6NTkyS5Xb32rWZIMA6xP8iDZObVe9q8A032H3KbrpPq25pcPkk031RlixirJE9eXy9Uwvhsg1WlYRjJKntPpGPNTCekOCR4i38hjJAfxLsGWSonAycQUUEBMlO2OeysuGjLWGxODp8YgDVMW1ksbLiUFutvuiooYpQqZwQZO29s5dT21nSLzqMNzasmUv5U7lDztHezawOETvZTxPBZESYkUdrwA4dQtH08uXQgY5qZBsRoQA0Q4HstZqWGJaNtd7kvJKaIVQBh9OkYSbOQsbmUTFRLmkcNr3GY1'
 
 class MongoSampleUser(MongoUser):
     """
@@ -19,83 +19,125 @@ class MongoSampleUser(MongoUser):
 
     def __init__(self, environment):
         super().__init__(environment)
-        self.name_cache = []
 
-    def generate_new_document(self):
+    # [0 to maxVal)     maxVal not included
+    def get_rand(self, maxVal):
+        return math.floor(random.random() * maxVal)
+        
+    def generate_new_document(self, collId):
         """
         Generate a new sample document
         """
+        assert collId < DEFAULTS['NUM_COLLECTIONS'], "Wrong Collection ID in generate_new_document " + str(collId)
+        s1 = self.get_rand(450)
+        s2 = self.get_rand(450)
+        s3 = self.get_rand(450)
+        s4 = self.get_rand(450)
+        l1 = self.get_rand(50)
+        l2 = self.get_rand(50)
+        l3 = self.get_rand(50)
+        l4 = self.get_rand(50)
         document = {
-            'first_name': self.faker.first_name(),
-            'last_name': self.faker.last_name(),
-            'address': self.faker.street_address(),
-            'city': self.faker.city(),
-            'total_assets': self.faker.pydecimal(min_value=100, max_value=1000, right_digits=2)
+            'first_name': STR[s1 : s1 + l1],
+            'last_name':  STR[s2 : s2 + l2],
+            'address':    STR[s3 : s3 + l3],
+            'city':       STR[s4 : s4 + l4],
+            'assets':   self.get_rand(10000000),
+            'expenses': self.get_rand(1000000),
+            'ticker':   self.get_rand(100000),
         }
         return document
-
-    @mongodb_task(weight=int(DEFAULTS['AGG_PIPE_WEIGHT']))
-    def run_aggregation_pipeline(self):
-        """
-        Run an aggregation pipeline on a secondary node
-        """
-        # count number of inhabitants per city
-        group_by = {
-            '$group': {
-                '_id': '$city',
-                'total_inhabitants': {'$sum': 1}
-            }
-        }
-
-        # rename the _id to city
-        set_columns = {'$set': {'city': '$_id'}}
-        unset_columns = {'$unset': ['_id']}
-
-        # sort by the number of inhabitants desc
-        order_by = {'$sort': {'total_inhabitants': pymongo.DESCENDING}}
-
-        pipeline = [group_by, set_columns, unset_columns, order_by]
-
-        # make sure we fetch everything by explicitly casting to list
-        # use self.collection instead of self.collection_secondary to run the pipeline on the primary
-        return list(self.collection_secondary.aggregate(pipeline))
 
     def on_start(self):
         """
         Executed every time a new test is started - place init code here
         """
-        # prepare the collection
-        index1 = pymongo.IndexModel([('first_name', pymongo.ASCENDING), ("last_name", pymongo.DESCENDING)],
-                                    name="idx_first_last")
-        self.collection, self.collection_secondary = self.ensure_collection(DEFAULTS['COLLECTION_NAME'], [index1])
-        self.name_cache = []
+        # prepare the collections
+        indexes = [
+            pymongo.IndexModel([('first_name', pymongo.ASCENDING)]),
+            pymongo.IndexModel([('last_name', pymongo.DESCENDING)]),
+            pymongo.IndexModel([('address', pymongo.ASCENDING)]),
+            pymongo.IndexModel([('city', pymongo.DESCENDING)]),
+            pymongo.IndexModel([('assets', pymongo.ASCENDING)]),
+            pymongo.IndexModel([('expenses', pymongo.DESCENDING)]),
+            pymongo.IndexModel([('ticker', pymongo.ASCENDING)])
+        ]
+
+        for collId in range(DEFAULTS['NUM_COLLECTIONS']):
+            collName = DEFAULTS['COLLECTION_PREFIX'] + '_' + str(collId)
+            self.collections[collId] = self.ensure_collection(collId, collName, indexes)
 
     @mongodb_task(weight=int(DEFAULTS['INSERT_WEIGHT']))
     def insert_single_document(self):
-        document = self.generate_new_document()
+        collId = random.randint(0, DEFAULTS['NUM_COLLECTIONS']-1)
+        document = self.generate_new_document(collId)
+        result = self.collections[collId].insert_one(document)
 
-        # cache the first_name, last_name tuple for queries
-        cached_names = (document['first_name'], document['last_name'])
-        if len(self.name_cache) < NAMES_TO_CACHE:
-            self.name_cache.append(cached_names)
-        else:
-            if random.randint(0, 9) == 0:
-                self.name_cache[random.randint(0, len(self.name_cache) - 1)] = cached_names
-
-        self.collection.insert_one(document)
+        # update the cache if FIND or UPDATE op is also enabled
+        if DEFAULTS['FIND_WEIGHT'] + DEFAULTS['UPDATE_WEIGHT'] != 0:
+            if len(self.cache[collId]) < DEFAULTS['DOCS_TO_CACHE']:
+                self.cache[collId].append(result.inserted_id)
+            else:
+                if random.randint(0, 9) == 0:
+                    self.cache[collId][random.randint(0, len(self.cache[collId]) - 1)] = result.inserted_id
 
     @mongodb_task(weight=int(DEFAULTS['FIND_WEIGHT']))
     def find_document(self):
+        # select a random collection
+        collId = random.randint(0, DEFAULTS['NUM_COLLECTIONS']-1)
+
         # at least one insert needs to happen
-        if not self.name_cache:
+        if not self.cache[collId]:
+            if random.randint(0, 10000) == 0:
+                print('Empty Cache. Cannot perform "Find" op')
             return
 
         # find a random document using an index
-        cached_names = random.choice(self.name_cache)
-        self.collection.find_one({'first_name': cached_names[0], 'last_name': cached_names[1]})
+        cached_val = random.choice(self.cache[collId])
+        query = {'_id': cached_val }
+        self.collections[collId].find_one(query)
 
     @mongodb_task(weight=int(DEFAULTS['BULK_INSERT_WEIGHT']), batch_size=int(DEFAULTS['DOCS_PER_BATCH']))
     def insert_documents_bulk(self):
-        self.collection.insert_many(
-            [self.generate_new_document() for _ in
+        collId = random.randint(0, DEFAULTS['NUM_COLLECTIONS']-1)
+        self.collections[collId].insert_many(
+            [self.generate_new_document(collId) for _ in
              range(int(DEFAULTS['DOCS_PER_BATCH']))])
+
+    @mongodb_task(weight=int(DEFAULTS['UPDATE_WEIGHT']))
+    def udpate_single_document(self):
+        # select a random collection
+        collId = random.randint(0, DEFAULTS['NUM_COLLECTIONS']-1)
+
+        # at least one insert needs to happen
+        if not self.cache[collId]:
+            if random.randint(0, 10000) == 0:
+                print('Empty Cache. Cannot perform "Update" op')
+            return
+
+        # find a random document
+        k = self.get_rand(len(self.cache[collId]))
+        cached_val = self.cache[collId][k]
+
+        # generate a new document that will update the old value
+        document = self.generate_new_document(collId)
+
+        # udpate the document
+        newValues = { "$set": document }
+        query = {'_id': cached_val }
+        self.collections[collId].update_one(query, newValues)
+
+    @mongodb_task(weight=int(DEFAULTS['DELETE_WEIGHT']))
+    def delete_document(self):
+        # select a random collection
+        collId = random.randint(0, DEFAULTS['NUM_COLLECTIONS']-1)
+
+        res = self.collections[collId].delete_one({})
+        if res.deleted_count == 0:
+            print('Delete failed')
+
+    @mongodb_task(weight=int(DEFAULTS['COLLSTATS_WEIGHT']))
+    def cmd_coll_stats(self):
+        collId = random.randint(0, DEFAULTS['NUM_COLLECTIONS']-1)
+        collName = DEFAULTS['COLLECTION_PREFIX'] + '_' + str(collId)        
+        print(self.db.command('collStats', collName))
