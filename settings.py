@@ -24,7 +24,6 @@ def init_defaults_from_env():
             if key in ['DB_NAME', 'COLLECTION_PREFIX', 'CLUSTER_URL']:
                 DEFAULTS[key] = value
             else :
-                print(type(value), key)
                 # Environment variables are being explicitly converted to integers from their string representation.
                 DEFAULTS[key] = int(value)
 
