@@ -28,7 +28,7 @@ Please clone this repository, create the virtual environment and install the pre
 following commands:
 
 ```shell
-git clone https://github.com/AbhiShrek/mongolocust   # or the original repo: https://github.com/sabyadi/mongolocust
+git clone https://github.com/abhishrek/mongolocust
 cd mongolocust
 python3 -m venv venv
 source venv/bin/activate
@@ -60,7 +60,7 @@ The steps required to run the primary instance:
 ```shell
 sudo yum install git -y
 sudo yum install python3 -y
-git clone https://github.com/AbhiShrek/mongolocust   # or the original repo: https://github.com/sabyadi/mongolocust
+git clone https://github.com/abhishrek/mongolocust
 cd mongolocust
 python3 -m venv venv
 source venv/bin/activate
@@ -84,7 +84,7 @@ The steps required to run a worker (can be repeated multiple time on multiple VM
 ```shell
 sudo yum install git -y
 sudo yum install python3 -y
-git clone https://github.com/AbhiShrek/mongolocust   # or the original repo: https://github.com/sabyadi/mongolocust
+git clone https://github.com/abhishrek/mongolocust
 cd mongolocust
 python3 -m venv venv
 source venv/bin/activate
