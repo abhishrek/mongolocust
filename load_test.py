@@ -141,3 +141,7 @@ class MongoSampleUser(MongoUser):
         collId = random.randint(0, DEFAULTS['NUM_COLLECTIONS']-1)
         collName = DEFAULTS['COLLECTION_PREFIX'] + '_' + str(collId)        
         print(self.db.command('collStats', collName))
+
+    @mongodb_task(weight=int(DEFAULTS['DBSTATS_WEIGHT']))
+    def cmd_db_stats(self):
+        print(self.db.command('dbStats'))

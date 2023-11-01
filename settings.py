@@ -14,7 +14,8 @@ DEFAULTS = {'DB_NAME': 'perfdb',
             'UPDATE_WEIGHT': 1,
             'DELETE_WEIGHT': 0,
             'BULK_INSERT_WEIGHT': 0,
-            'COLLSTATS_WEIGHT': 1,
+            'COLLSTATS_WEIGHT': 0,
+            'DBSTATS_WEIGHT': 0,
             }
 
 def init_defaults_from_env():
