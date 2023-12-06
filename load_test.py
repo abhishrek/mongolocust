@@ -1,5 +1,5 @@
 from locust import between
-
+from locust_plugins import constant_total_ips
 from mongo_user import MongoUser, mongodb_task
 from settings import DEFAULTS
 
@@ -14,8 +14,13 @@ class MongoSampleUser(MongoUser):
     """
     Generic sample mongodb workload generator
     """
-    # no delays between operations
-    wait_time = between(0.0, 0.0)
+    # To Drive an specific TPS by all users . If TPS value is -1 that means there will be no wait at all.
+    if(int(DEFAULTS['TPS']) == -1):
+        # no delays between operations
+        wait_time = between(0.0, 0.0)
+    else:
+        wait_time = constant_total_ips(int(DEFAULTS['TPS']))
+
 
     def __init__(self, environment):
         super().__init__(environment)

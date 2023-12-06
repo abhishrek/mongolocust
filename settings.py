@@ -16,6 +16,9 @@ DEFAULTS = {'DB_NAME': 'perfdb',
             'BULK_INSERT_WEIGHT': 0,
             'COLLSTATS_WEIGHT': 0,
             'DBSTATS_WEIGHT': 0,
+            
+            # To achieve a particular TPS please adjust the TPS value. Setting it to -1 means there will be no delay between threads, maximizing the client's attempt to achieve the highest possible TPS.
+            'TPS' : -1, 
             }
 
 def init_defaults_from_env():
