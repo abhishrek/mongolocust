@@ -58,15 +58,18 @@ class MongoSampleUser(MongoUser):
         Executed every time a new test is started - place init code here
         """
         # prepare the collections
-        indexes = [
-            pymongo.IndexModel([('first_name', pymongo.ASCENDING)]),
-            pymongo.IndexModel([('last_name', pymongo.DESCENDING)]),
-            pymongo.IndexModel([('address', pymongo.ASCENDING)]),
-            pymongo.IndexModel([('city', pymongo.DESCENDING)]),
-            pymongo.IndexModel([('assets', pymongo.ASCENDING)]),
-            pymongo.IndexModel([('expenses', pymongo.DESCENDING)]),
-            pymongo.IndexModel([('ticker', pymongo.ASCENDING)])
-        ]
+        indexes = []
+        
+        if(DEFAULTS['CREATE_INDEX_ON_ALL_FIELD']):
+            indexes = [
+                pymongo.IndexModel([('first_name', pymongo.ASCENDING)]),
+                pymongo.IndexModel([('last_name', pymongo.DESCENDING)]),
+                pymongo.IndexModel([('address', pymongo.ASCENDING)]),
+                pymongo.IndexModel([('city', pymongo.DESCENDING)]),
+                pymongo.IndexModel([('assets', pymongo.ASCENDING)]),
+                pymongo.IndexModel([('expenses', pymongo.DESCENDING)]),
+                pymongo.IndexModel([('ticker', pymongo.ASCENDING)])
+            ]
 
         for collId in range(DEFAULTS['NUM_COLLECTIONS']):
             collName = DEFAULTS['COLLECTION_PREFIX'] + '_' + str(collId)

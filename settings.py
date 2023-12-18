@@ -19,6 +19,7 @@ DEFAULTS = {'DB_NAME': 'perfdb',
             
             # To achieve a particular TPS please adjust the TPS value. Setting it to -1 means there will be no delay between threads, maximizing the client's attempt to achieve the highest possible TPS.
             'TPS' : -1, 
+            'CREATE_INDEX_ON_ALL_FIELD' : False # to create index on all field of collection set it to true
             }
 
 def init_defaults_from_env():
