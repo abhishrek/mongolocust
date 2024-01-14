@@ -8,7 +8,7 @@ DEFAULTS = {'DB_NAME': 'perfdb',
             'DOCS_TO_CACHE' : 10000,    # There is one cache per collection per thread. 
             'DOCS_PER_BATCH': 100,  # For bulk insert/update
 
-            # Define Weifgts of your workload
+            # Define Weights of your workload
             'FIND_WEIGHT': 5,
             'INSERT_WEIGHT': 5,
             'UPDATE_WEIGHT': 1,
@@ -16,6 +16,7 @@ DEFAULTS = {'DB_NAME': 'perfdb',
             'BULK_INSERT_WEIGHT': 0,
             'COLLSTATS_WEIGHT': 0,
             'DBSTATS_WEIGHT': 0,
+            'LISTDATABASES_WEIGHT': 0,
             
             # To achieve a particular TPS please adjust the TPS value. Setting it to -1 means there will be no delay between threads, maximizing the client's attempt to achieve the highest possible TPS.
             'TPS' : -1, 

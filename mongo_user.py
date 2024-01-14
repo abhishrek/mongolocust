@@ -60,6 +60,7 @@ class MongoUser(User):
 
     def __init__(self, environment):
         super().__init__(environment)
+        self.client = CLIENT
         self.db = CLIENT[DEFAULTS['DB_NAME']]
         # list of collections
         self.collections = [None for collId in range(DEFAULTS['NUM_COLLECTIONS'])]

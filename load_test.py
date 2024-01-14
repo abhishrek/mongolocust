@@ -153,3 +153,11 @@ class MongoSampleUser(MongoUser):
     @mongodb_task(weight=int(DEFAULTS['DBSTATS_WEIGHT']))
     def cmd_db_stats(self):
         print(self.db.command('dbStats'))
+
+    @mongodb_task(weight=int(DEFAULTS['LISTDATABASES_WEIGHT']))
+    def cmd_list_databases(self):
+        self.client.list_databases()
+        cursor = self.client.list_databases()
+        print("Num of dbs: ", len([db_info for db_info in cursor]))
+        # for dbinfo in cursor:
+        #    print(dbinfo)
